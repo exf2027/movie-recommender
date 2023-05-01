@@ -1,17 +1,17 @@
 import './App.css';
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import theme from './theme';
 import { ThemeProvider, styled } from '@mui/material/styles';
 import { TextField, Button, Typography } from '@mui/material';
-import Select from 'react-select';
 import axios from 'axios';
+import Select, { StylesConfig } from 'react-select';
+// import makeAnimated from 'react-select/animated'; //porque quiero probarlo luego je
 
 const Wrapper = styled('div')(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  // height: 'align',
   backgroundColor: theme.palette.background.default,
   marginTop: '20px',
 }));
@@ -26,8 +26,10 @@ const WrapperImage = styled('div')(({ theme }) => ({
 }));
 
 const Title = styled(Typography)(({ theme }) => ({
-  // fontSize: '2rem',
   fontWeight: 'bold',
+  textAlign: 'center',
+  marginLeft: '1rem',
+  marginRight: '1rem',
   marginBottom: '1rem',
   color: theme.palette.text.secondary,
 }));
@@ -40,10 +42,11 @@ const Form = styled('form')(({ theme }) => ({
 }));
 
 const Label = styled('label')(({ theme }) => ({
-  fontSize: '1.2rem',
-  marginTop: '20px',
+  fontSize: '1rem',
+  marginLeft: '4rem',
+  marginRight: '4rem',
   color: '#ffffff',
-}));
+})); 
 
 const Input = styled(TextField)(({ theme }) => ({
   marginTop: '20px',
@@ -69,23 +72,39 @@ const Body = styled('div')(({ theme }) => ({
 }));
 
 function App() {
-  const [value, setValue] = useState('');
+  const [seedValue, setSeedValue] = useState('');
   const [click, setClick] = useState(false);
   const [recommendations, setRecommendations] = useState(null);
+  const [seedType, setSeedType] = useState('');
 
-  const handleChange = event => {
-    setValue(event.target.value);
+  const onSeedValueChange = event => {
+    setSeedValue(event.target.value);
   }
+
+  const onSeedTypeChange = useCallback(((option) => {
+    setSeedType(option);
+    console.log('SeedType: ', option);
+  }),[seedType]);
+
+  useEffect(() => {
+    console.log('SeedType: ', seedType);
+  }, [seedType]);
 
   const handleSubmit = event => {
     setClick(true);
+
     setRecommendations(null);
     event.preventDefault();
-    console.log("Movie's Director: " + value);
+    console.log(seedType.value, ' selected: ', seedValue);
+
+    const seedEndpoint = 
+      seedType.value === 'movie' ? 'movie-recommendations' :
+      seedType.value === 'actor' ? 'actor-recommendations' :
+      'recommendations'; // default value === 'director' ? 'recommendations';
   
-    axios.get('http://localhost:3001/recommendations', {
+    axios.get(`http://localhost:3001/${seedEndpoint}`, {
       params: {
-        director: value
+        [seedType.value] : seedValue
       }
     })
     .then(response => {
@@ -97,7 +116,7 @@ function App() {
     });
   }
 
-  const optionsSelect = [
+  const seedTypes = [
     { value: 'director', label: 'Director' },
     { value: 'movie', label: 'Movie' },
     { value: 'actor', label: 'Actor' }
@@ -112,29 +131,29 @@ function App() {
       <Wrapper>
         <Title variant="h1">Movie Recommender</Title>
         <Form onSubmit={handleSubmit}>
-        <Label htmlFor="option-select">
+          <Label htmlFor="option-select">
             Choose Movie, Actor or Director
           </Label>
           <Label htmlFor="director-name">
             Input one that you like, and I will recommend you movies:
           </Label>
-          <Select id="option-select" name="option-select" options={optionsSelect} 
-          // defaultValue={optionsSelect[0].value} 
+          <Select id="option-select" name="option-select" options={seedTypes} 
+            value={seedType} onChange={onSeedTypeChange} required
           ></Select>
           <Input
             id="director-name"
             name="director-name"
             variant="outlined"
             required
-            value={value}
-            onChange={handleChange}
+            value={seedValue}
+            onChange={onSeedValueChange}
           />
           <SubmitButton type="submit">Submit</SubmitButton>
         </Form>
       </Wrapper>
       <Wrapper>
         {click && !recommendations && (
-          <div marginTop="20px">
+          <div style={{marginTop:"20px"}}>
             <img src={require('./img/waiting.gif')} alt="loading..." 
             width="80" height="80" className="waiting-gif"/>
           </div>
@@ -145,10 +164,10 @@ function App() {
             <Body>
               {recommendations.map((rec, index) => (
                 <div key={index}>
-                  {rec.movie && (
-                    <div>{rec.movie}</div>
+                  <div>"{rec.movie}" by {rec.director}</div>
+                  {rec.trailer && (
+                    <a target="_blank" href={`https://youtube.com/watch?v=${rec.trailer}`}>Ver Trailer</a>
                   )}
-                  <div>{rec.director}</div>
                 </div>
               ))}
             </Body>
